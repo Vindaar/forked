@@ -66,6 +66,8 @@ proc piProcPool(n: int): float =
     send res
     join: result += res
 
+echo piProcPool(100) # run in parallel!
+
 # 2. Example sending non trivial data (i.e. not mem-copyable) data from
 #    child to parent. It just works 'magically' for you.
 type
@@ -80,9 +82,42 @@ proc testIt(): seq[Foo] =
     send f
     join: result.add f
 
-echo piProcPool(100)
+echo testIt() # run in parallel!
+#+end_src
+
+** Iteration index
+
+You can also explicitly name the iteration index variable by writing
+one of the following:
+#+begin_src nim
+for i, x in forked(...)
+for (i, x) in forked(...)  
+#+end_src
+This allows you to explicitly access the iteration index (and thus job
+index) in the loop body.
+
+*IMPORTANT*: This also *does* allow you to access e.g. the ~i-th~
+element of e.g. a sequence inside of the ~join~ portion!
+
+For example the second example from above could also be:
+#+begin_src nim
+type
+  Foo = object
+    s: string
+    x: float
+
+proc calcFoo(x: int): Foo = Foo(s: $x, x: x.float)
+proc testIt(): seq[Foo] =
+  result = newSeq[Foo](10)
+  for i, x in forked(0 ..< 10):
+    let f = calcFoo(x)
+    send f
+    join: result[i] = f
+
 echo testIt()
 #+end_src
+
+This can be useful if you need the result in a sorted order. 
 
 ** Details about data transfer child ⇒ parent process 
 
