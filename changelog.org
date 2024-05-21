@@ -1,2 +1,4 @@
+* v0.1.1
+- support access to job index (iteration index) (including in ~join:~ statement)
 * v0.1.0
 - initial implementation of ~forked~
