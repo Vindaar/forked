@@ -1,7 +1,7 @@
 * ~forked~ - Sugar for ~cligen/procpool~
 
-For quite a while cligen has a ~procpool~ submodule. It is basically a
-module similar to Python's multiproccesing module. Under the hood it
+For quite a now while [[https://github.com/c-blake/cligen][cligen]] has a [[https://github.com/c-blake/cligen/blob/master/cligen/procpool.nim][~procpool~]] submodule. It is basically a
+module similar to Python's [[https://docs.python.org/3/library/multiprocessing.html][multiproccesing]] module. Under the hood it
 uses ~fork()~ to produce child processes. 
 
 In many use cases the memory overhead and startup overhead compared to
