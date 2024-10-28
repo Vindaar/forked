@@ -149,12 +149,12 @@ proc deconstructForStmt(n: NimNode): tuple[syms: seq[NimNode],
     syms.add n[i]
   result = (syms: syms, call: n[n.len - 2], body: n[n.len - 1])
 
-proc finalizeJoin(fn: JoinStmt, send: SendStmt, outTyp, joinId, idxSym: NimNode): NimNode =
+proc finalizeJoin(fn: JoinStmt, send: SendStmt, inTyp, outTyp, joinId, idxSym: NimNode): NimNode =
   ## Replace the `send` identifier by a correct pointer cast / load from buffer
   ## setup
   let sl = genSym(nskParam, "slice") ## XXX: update
   let data = quote do: # load data / extract from MSlice
-    when not `outTyp`.supportsCopyMem:
+    when not `inTyp`.supportsCopyMem: # (int, inTyp) == outTyp
       when WriteFiles:
         let path = $(`sl`)
         loadBuffer[`outTyp`](path, DeleteFiles)
@@ -181,6 +181,9 @@ proc patchSendTmpl(sen: SendStmt, oId, idxSym: NimNode): NimNode =
 
 macro forked*(n: ForLoopStmt): untyped =
   ## XXX: Extend to not force `evalOb` and `uRd` on the input side! Also allow copy & load there
+  # Note: in the code below we currently work around:
+  # `https://github.com/nim-lang/Nim/issues/24378`
+
   # Deconstruct the `ForLoopStmt` into its pieces
   let (syms, call, body) = deconstructForStmt(n)
   # Extract all the relevant pieces of the for loop stmt
@@ -193,7 +196,8 @@ macro forked*(n: ForLoopStmt): untyped =
   let oId    = genSym(nskLet, "o")
   let joinId = genSym(nskTemplate, "join")
   let ppId   = genSym(nskVar, "pp")
-  let Wid    = genSym(nskType, "W") # write type (without index!)
+  let WIn    = genSym(nskType, "WIn")
+  let WId    = genSym(nskType, "W") # write type (without index!)
 
   # Get iterator, and iteration variables for loop
   let iterCall = iter.iter
@@ -211,7 +215,7 @@ macro forked*(n: ForLoopStmt): untyped =
   fakeBody.add senId
 
   # finalize the `join` `onReply` logic
-  let finJoin  = finalizeJoin(join, sen, Wid, joinId, idxSym)
+  let finJoin  = finalizeJoin(join, sen, WIn, WId, joinId, idxSym)
 
   # finalize the body (i.e. patch `send` template)
   loopBody.add patchSendTmpl(sen, oId, idxSym)
@@ -219,10 +223,10 @@ macro forked*(n: ForLoopStmt): untyped =
   result = quote do:
     type RIn = typeof(`iterCall`) # parent ⇒ child type (user)
     type R = (int, RIn)           # actual type we transfer (job index, user data)
-    type WIn = typeof(`fakeBody`) # child ⇒ parent type (user)
-    type `WId` = (int, Win)       # actual type we transfer (job index, user data)
+    type `WIn` = typeof(`fakeBody`) # child ⇒ parent type (user)
+    type `WId` = (int, `WIn`)       # actual type we transfer (job index, user data)
     let jobs = if `jobs` > 0: `jobs` else: parseInt(getEnv("PP_JOBS", $countProcessors()))
-    when not `WId`.supportsCopyMem:
+    when not `WIn`.supportsCopyMem: # if `WIn` supports memcopy, so does `(int, WIn)`. Due to https://github.com/nim-lang/Nim/issues/24378
       var `ppId` = ppFramesLenPfx(R, `oId`, `sId`, `idxSym`, jobs, `loopBody`)
     else:
       var `ppId` = ppFramesOb(R, `WId`, `oId`, `sId`, `idxSym`, jobs, `loopBody`)
