@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.1"
+version       = "0.1.2"
 author        = "Vindaar"
 description   = "Syntax sugar for cligen's procpool"
 license       = "MIT"

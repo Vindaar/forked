@@ -1,3 +1,6 @@
+* v0.1.2
+- work around https://github.com/nim-lang/Nim/issues/24378 by checking
+  memcopy-ability only based on input type and not ~(int, inputType)~ tuple
 * v0.1.1
 - support access to job index (iteration index) (including in ~join:~ statement)
 * v0.1.0
